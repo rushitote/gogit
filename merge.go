@@ -86,7 +86,7 @@ func Merge(user string, x, y *Commit, force bool) {
 		return
 	}
 
-	if hasConflicts && !force {
+	if !force {
 		fmt.Println("Merge failed")
 		return
 	}
@@ -95,9 +95,12 @@ func Merge(user string, x, y *Commit, force bool) {
 		fmt.Println("Resolving conflicts in ", relativePath)
 		newContent := ResolveConflicts(baseObjects[relativePath], xObjects[relativePath], yObjects[relativePath])
 		ioutil.WriteFile(relativePath, []byte(newContent), 0644)
-		f, _ := os.OpenFile(relativePath, os.O_RDONLY, 0644)
+		f, err := os.OpenFile(relativePath, os.O_RDONLY, 0644)
+		if err != nil {
+			panic(err)
+		}
+		defer f.Close()
 		hash := HashFile(f)
-		f.Close()
 		CopyFile(relativePath, ".gogit/objects/"+hash)
 		finalObjects[relativePath] = hash
 	}

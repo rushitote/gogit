@@ -88,6 +88,7 @@ var logCmd = &cobra.Command{
 	Short: "Show commit logs",
 	Run: func(cmd *cobra.Command, args []string) {
 		commitHash := GetHead()
+		vis := make(map[string]bool)
 		queue := []string{commitHash}
 		for len(queue) != 0 {
 			commitHash := queue[0]
@@ -96,7 +97,11 @@ var logCmd = &cobra.Command{
 			if commit == nil {
 				continue
 			}
-			commit.LogCommit()
+			_, ok := vis[commitHash]
+			if !ok {
+				commit.LogCommit()
+				vis[commitHash] = true
+			}
 			for _, prevCommit := range commit.PrevCommits {
 				queue = append(queue, prevCommit.Hash)
 			}

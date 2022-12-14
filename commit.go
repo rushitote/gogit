@@ -127,7 +127,7 @@ func CreateCommit(user string, message string, parentCommits []*Commit) *Commit 
 	objects := GetSnapshot()
 
 	//check if the commit is the same as the previous one
-	if len(parentCommits) != 0 {
+	if len(parentCommits) == 1 {
 		same := true
 		currSnap := map[string]string{} // relative path -> hash
 		for _, object := range objects {
@@ -192,8 +192,8 @@ func (c *Commit) LogCommit() {
 	fmt.Printf("Message: %s\n\n", c.Message)
 }
 
-func (c *Commit) DeleteCommit(){
-	err := os.Remove(".gogit/commits/"+c.Hash)
+func (c *Commit) DeleteCommit() {
+	err := os.Remove(".gogit/commits/" + c.Hash)
 	if err != nil {
 		panic(err)
 	}
