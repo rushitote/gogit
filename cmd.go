@@ -19,11 +19,13 @@ var commitCmd = &cobra.Command{
 	Short: "Commit changes to the repository",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		commits := *Initialize()
+		commits := *GetAllCommits()
 		var newCommit *Commit
 		message := strings.Join(args[0:], " ")
 		if len(commits) == 0 {
 			newCommit = CreateCommit("user", message, []*Commit{})
+			CreateBranch("MASTER", newCommit.Hash)
+			SaveHeadBranch("MASTER")
 		} else {
 			head := GetHead()
 			headCommit := GetCommit(head)
@@ -32,6 +34,7 @@ var commitCmd = &cobra.Command{
 		if newCommit != nil {
 			commits = append(commits, *newCommit)
 			SaveHead(newCommit)
+			UpdateHeadBranch(newCommit.Hash)
 		}
 		SaveConfig(&commits)
 	},
@@ -49,6 +52,24 @@ var checkoutCmd = &cobra.Command{
 			SaveHead(commit)
 		} else {
 			fmt.Println("Commit not found")
+		}
+	},
+}
+
+var checkoutBranchCmd = &cobra.Command{
+	Use:   "cb",
+	Short: "Checkout a branch",
+	Args:  cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		branchName := args[0]
+		commitHash := GetBranchCommit(branchName)
+		if commitHash != "" {
+			commit := GetCommit(commitHash)
+			ApplyCommit(commit)
+			SaveHead(commit)
+			SaveHeadBranch(branchName)
+		} else {
+			fmt.Println("Branch not found")
 		}
 	},
 }
@@ -114,14 +135,39 @@ var mergeCommitsCmd = &cobra.Command{
 	},
 }
 
+var mergeBranchesCmd = &cobra.Command{
+	Use:   "mb",
+	Short: "Merges two branches",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		branch1 := GetBranchCommit(args[0])
+		branch2 := GetBranchCommit(GetHeadBranch())
+		if branch1 == "" || branch2 == "" || branch1 == branch2 {
+			fmt.Println("Merge not possible")
+			return
+		}
+		commit1 := GetCommit(branch1)
+		commit2 := GetCommit(branch2)
+		Merge("user", commit1, commit2, true)
+		newCommit := CreateCommit("user", "Merge "+args[0]+" into "+GetHeadBranch(), []*Commit{commit1, commit2})
+		if newCommit != nil {
+			commits := *GetAllCommits()
+			commits = append(commits, *newCommit)
+			SaveHead(newCommit)
+			UpdateHeadBranch(newCommit.Hash)
+			SaveConfig(&commits)
+		}
+	},
+}
+
 var branchCmd = &cobra.Command{
 	Use:   "branch",
 	Short: "Create/Delete/Rename a branch",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		Initialize()
+		GetAllCommits()
 		flag := args[0]
-		var branchName string	
+		var branchName string
 		if len(args) > 1 {
 			branchName = args[1]
 		}
@@ -133,6 +179,7 @@ var branchCmd = &cobra.Command{
 				commitHash = args[2]
 			}
 			CreateBranch(branchName, commitHash)
+			SaveHeadBranch(branchName)
 		} else if flag == "delete" {
 			DeleteBranch(branchName)
 		} else if flag == "rename" {
@@ -145,6 +192,38 @@ var branchCmd = &cobra.Command{
 	},
 }
 
+var gcCmd = &cobra.Command{
+	Use:   "gc",
+	Short: "Garbage collection",
+	Run: func(cmd *cobra.Command, args []string) {
+		visited := map[string]bool{}
+		commits := *GetAllCommits()
+		queue := []string{}
+		queue = append(queue, *GetAllBranchHeads()...)
+		for len(queue) != 0 {
+			commitHash := queue[0]
+			queue = queue[1:]
+			visited[commitHash] = true
+			commit := GetCommit(commitHash)
+			if commit == nil {
+				continue
+			}
+			for _, prevCommit := range commit.PrevCommits {
+				queue = append(queue, prevCommit.Hash)
+			}
+		}
+		var allVisCommits []Commit
+		for _, commit := range commits {
+			if _, ok := visited[commit.Hash]; !ok {
+				commit.DeleteCommit()
+			} else {
+				allVisCommits = append(allVisCommits, commit)
+			}
+		}
+		SaveConfig(&allVisCommits)
+	},
+}
+
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -153,10 +232,14 @@ func Execute() {
 }
 
 func init() {
+	Initialize()
 	rootCmd.AddCommand(commitCmd)
 	rootCmd.AddCommand(checkoutCmd)
+	rootCmd.AddCommand(checkoutBranchCmd)
 	rootCmd.AddCommand(logCmd)
 	rootCmd.AddCommand(searchCommitCmd)
 	rootCmd.AddCommand(mergeCommitsCmd)
 	rootCmd.AddCommand(branchCmd)
+	rootCmd.AddCommand(mergeBranchesCmd)
+	rootCmd.AddCommand(gcCmd)
 }

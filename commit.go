@@ -192,6 +192,14 @@ func (c *Commit) LogCommit() {
 	fmt.Printf("Message: %s\n\n", c.Message)
 }
 
+func (c *Commit) DeleteCommit(){
+	err := os.Remove(".gogit/commits/"+c.Hash)
+	if err != nil {
+		panic(err)
+	}
+	// TODO: delete objects
+}
+
 func GetHead() string {
 	head, err := os.OpenFile(".gogit/HEAD", os.O_RDONLY|os.O_CREATE, 0644)
 	if err != nil {

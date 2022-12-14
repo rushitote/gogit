@@ -6,14 +6,15 @@ import (
 	"strings"
 )
 
-// runs every time the program is run
-func Initialize() *[]Commit {
+func Initialize() {
 	os.MkdirAll(".gogit", 0755)
 	os.MkdirAll(".gogit/objects", 0755)
 	os.MkdirAll(".gogit/commits", 0755)
 	os.MkdirAll(".gogit/branches", 0755)
 	os.OpenFile(".gogit/config", os.O_RDONLY|os.O_CREATE, 0666)
+}
 
+func GetAllCommits() *[]Commit {
 	configFile, err := ioutil.ReadFile(".gogit/config")
 	if err != nil {
 		panic(err)
