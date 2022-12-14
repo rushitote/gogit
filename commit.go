@@ -35,9 +35,9 @@ func DeserializeCommit(s string) *Commit {
 	var user, hash, prevCommitHashConcat string
 	var objectCount int
 	var objectsString string
-	var time int64
-	fmt.Sscanf(s, "%s\n%s\n%d\n%s\n%s\n%d", &user, &hash, &objectCount, &objectsString, &prevCommitHashConcat, &time)
+	fmt.Sscanf(s, "%s\n%s\n%d\n%s\n%s\n", &user, &hash, &objectCount, &objectsString, &prevCommitHashConcat)
 	message := GetMessageFromCommitFile(hash)
+	time := GetTimeFromCommitFile(hash)
 	objects := strings.Split(objectsString, ",")
 	var objectsList []Object
 	for i := 0; i < objectCount; i++ {

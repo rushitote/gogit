@@ -309,6 +309,9 @@ var moveAcrossCommitsCmd = &cobra.Command{
 							break
 						}
 					}
+					if found {
+						break
+					}
 				}
 				if found {
 					fmt.Println("\nCurrent commit: ")

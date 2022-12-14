@@ -3,6 +3,7 @@ package main
 import (
 	"io"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -44,6 +45,20 @@ func GetMessageFromCommitFile(commitHash string) string {
 	commitString := FileToString(commitFile)
 	lines := strings.Split(commitString, "\n")
 	return lines[len(lines)-2]
+}
+
+func GetTimeFromCommitFile(commitHash string) int64 {
+	commitFile, err := os.OpenFile(".gogit/commits/"+commitHash, os.O_RDONLY, 0644)
+	if err != nil {
+		panic(err)
+	}
+	commitString := FileToString(commitFile)
+	lines := strings.Split(commitString, "\n")
+	time, err := strconv.ParseInt(lines[len(lines)-3], 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	return time
 }
 
 func AreStringsArraysEqual(a []string, b []string) bool {
