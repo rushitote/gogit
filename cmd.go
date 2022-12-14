@@ -8,6 +8,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	// Flags
+	lev bool
+	cos bool
+	lcs bool
+	jac bool
+)
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "gogit",
@@ -101,21 +109,18 @@ var searchCommitCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		query := strings.Join(args[0:], " ")
-		commitHash := GetHead()
-		queue := []string{commitHash}
-		for len(queue) != 0 {
-			commitHash := queue[0]
-			queue = queue[1:]
-			commit := GetCommit(commitHash)
-			if commit == nil {
-				continue
-			}
-			if strings.Contains(commit.Message, query) {
-				commit.LogCommit()
-			}
-			for _, prevCommit := range commit.PrevCommits {
-				queue = append(queue, prevCommit.Hash)
-			}
+		commits := *GetAllCommits()
+		if lev {
+			commits = SortCommitsByLevenshteinSim(commits, query)
+		} else if jac {
+			commits = SortCommitsByJaccardSim(commits, query)
+		} else if cos {
+			commits = SortCommitsByCosineSim(commits, query)
+		} else {
+			commits = SortCommitsByLCSSim(commits, query)
+		}
+		for _, commit := range commits {
+			commit.LogCommit()
 		}
 	},
 }
@@ -233,6 +238,12 @@ func Execute() {
 
 func init() {
 	Initialize()
+
+	searchCommitCmd.Flags().BoolVarP(&lev, "lev", "l", false, "Use Levenshtein distance to search for commit")
+	searchCommitCmd.Flags().BoolVarP(&cos, "cos", "c", false, "Use Cosine Sim distance to search for commit")
+	searchCommitCmd.Flags().BoolVarP(&jac, "jac", "j", false, "Use Jaccard distance to search for commit")
+	searchCommitCmd.Flags().BoolVarP(&lcs, "lcs", "", false, "Use Longest Common Subsequence distance to search for commit")
+
 	rootCmd.AddCommand(commitCmd)
 	rootCmd.AddCommand(checkoutCmd)
 	rootCmd.AddCommand(checkoutBranchCmd)
