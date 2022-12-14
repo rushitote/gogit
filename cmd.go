@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"strings"
@@ -269,6 +270,56 @@ var fileHistoryCmd = &cobra.Command{
 	},
 }
 
+var moveAcrossCommitsCmd = &cobra.Command{
+	Use:   "play",
+	Short: "Move across commits",
+	Run: func(cmd *cobra.Command, args []string) {
+		commits := *GetAllCommits()
+		currCommit := GetCommit(GetHead())
+		fmt.Println("Current commit: ")
+		currCommit.LogCommit()
+		for {
+			reader := bufio.NewReader(os.Stdin)
+			char, err := reader.ReadString('\n')
+			if err != nil {
+				panic(err)
+			}
+			if char == "l\n" {
+				if len(currCommit.PrevCommits) == 0 {
+					fmt.Println("No previous commits")
+				} else {
+					currCommit = currCommit.PrevCommits[0]
+					fmt.Println("\nCurrent commit: ")
+					ApplyCommit(currCommit)
+					SaveHead(currCommit)
+					currCommit.LogCommit()
+				}
+			} else if char == "r\n" {
+				found := false
+				for _, commit := range commits {
+					for _, prevCommit := range commit.PrevCommits {
+						if prevCommit.Hash == currCommit.Hash {
+							currCommit = &commit
+							found = true
+							break
+						}
+					}
+				}
+				if found {
+					fmt.Println("\nCurrent commit: ")
+					currCommit.LogCommit()
+					ApplyCommit(currCommit)
+					SaveHead(currCommit)
+				} else {
+					fmt.Println("No next commits")
+				}
+			} else {
+				break
+			}
+		}
+	},
+}
+
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -294,4 +345,5 @@ func init() {
 	rootCmd.AddCommand(mergeBranchesCmd)
 	rootCmd.AddCommand(gcCmd)
 	rootCmd.AddCommand(fileHistoryCmd)
+	rootCmd.AddCommand(moveAcrossCommitsCmd)
 }
