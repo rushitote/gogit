@@ -229,6 +229,46 @@ var gcCmd = &cobra.Command{
 	},
 }
 
+var fileHistoryCmd = &cobra.Command{
+	Use:   "fh",
+	Short: "File history",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		relativeFilePath := args[0]
+		head := GetHead()
+		commit := GetCommit(head)
+		if commit == nil {
+			return
+		}
+		queue := []*Commit{commit}
+		for len(queue) != 0 {
+			commit := queue[0]
+			queue = queue[1:]
+			hasModifiedFile := false
+			for _, object := range commit.Objects {
+				if object.RelativePath == relativeFilePath {
+					hasModifiedFile = true
+					for _, prevCommit := range commit.PrevCommits {
+						for _, prevObject := range prevCommit.Objects {
+							if prevObject.RelativePath == relativeFilePath {
+								if object.Hash == prevObject.Hash {
+									hasModifiedFile = false
+								}
+							}
+						}
+					}
+				}
+			}
+
+			if hasModifiedFile {
+				commit.LogCommit()
+			}
+
+			queue = append(queue, commit.PrevCommits...)
+		}
+	},
+}
+
 func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
@@ -253,4 +293,5 @@ func init() {
 	rootCmd.AddCommand(branchCmd)
 	rootCmd.AddCommand(mergeBranchesCmd)
 	rootCmd.AddCommand(gcCmd)
+	rootCmd.AddCommand(fileHistoryCmd)
 }
