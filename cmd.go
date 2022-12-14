@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -100,6 +101,40 @@ var logCmd = &cobra.Command{
 			_, ok := vis[commitHash]
 			if !ok {
 				commit.LogCommit()
+				vis[commitHash] = true
+			}
+			for _, prevCommit := range commit.PrevCommits {
+				queue = append(queue, prevCommit.Hash)
+			}
+		}
+	},
+}
+
+var beforeCmd = &cobra.Command{
+	Use:   "before",
+	Short: "Show commit logs before some time",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		timestamp, err := strconv.ParseInt(args[0], 10, 64)
+		if err != nil {
+			fmt.Println("Invalid timestamp")
+			return
+		}
+		commitHash := GetHead()
+		vis := make(map[string]bool)
+		queue := []string{commitHash}
+		for len(queue) != 0 {
+			commitHash := queue[0]
+			queue = queue[1:]
+			commit := GetCommit(commitHash)
+			if commit == nil {
+				continue
+			}
+			_, ok := vis[commitHash]
+			if !ok {
+				if commit.Time <= timestamp {
+					commit.LogCommit()
+				}
 				vis[commitHash] = true
 			}
 			for _, prevCommit := range commit.PrevCommits {
@@ -347,6 +382,7 @@ func init() {
 	rootCmd.AddCommand(checkoutCmd)
 	rootCmd.AddCommand(checkoutBranchCmd)
 	rootCmd.AddCommand(logCmd)
+	rootCmd.AddCommand(beforeCmd)
 	rootCmd.AddCommand(searchCommitCmd)
 	rootCmd.AddCommand(mergeCommitsCmd)
 	rootCmd.AddCommand(branchCmd)
